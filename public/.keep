@@ -1,1 +1,0 @@
-placeholder so Vercel's outputDirectory check passes; real routes are served by api/index.ts

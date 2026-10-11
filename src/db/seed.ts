@@ -76,6 +76,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "New York", state: "NY", setting: "urban",
     cultureTags: ["corporate", "arts", "startup"], worldRanking: 25,
     aidSiteUrl: "https://www.nyu.edu/admissions/financial-aid.html", admissionsEmail: "admissions@nyu.edu", admissionsPhone: "+12129982222",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/1d/NYC_-_Washington_Square_Park_-_Arch.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
       need_aware: { value: "yes", confidence: 0.6 },
@@ -99,6 +100,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "Nashville", state: "TN", setting: "urban",
     cultureTags: ["corporate", "research"], worldRanking: 60,
     aidSiteUrl: "https://admissions.vanderbilt.edu/afford", admissionsEmail: "admissions@vanderbilt.edu", admissionsPhone: "+16153227311",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/6/61/Kirkland_Hall_with_two_Towers.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
       need_aware: { value: "yes", confidence: 0.55 },
@@ -110,6 +112,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "Cleveland", state: "OH", setting: "urban",
     cultureTags: ["startup", "research"], worldRanking: 150,
     aidSiteUrl: "https://case.edu/financialaid", admissionsEmail: "admission@case.edu", admissionsPhone: "+12163682000",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/3/38/Case_western_reserve_campus_2005.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
       need_aware: { value: "yes", confidence: 0.55 },
@@ -121,6 +124,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "Rochester", state: "NY", setting: "suburban",
     cultureTags: ["research", "arts"], worldRanking: 180,
     aidSiteUrl: "https://enrollment.rochester.edu/financial-aid", admissionsEmail: "admit@rochester.edu", admissionsPhone: "+15852752121",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/3/34/University_of_Rochester_Clock_Tower.JPG",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
       need_aware: { value: "yes", confidence: 0.5 },
@@ -132,6 +136,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "South Hadley", state: "MA", setting: "suburban",
     cultureTags: ["liberal_arts", "arts"], worldRanking: 200,
     aidSiteUrl: "https://www.mtholyoke.edu/financial-aid", admissionsEmail: "admission@mtholyoke.edu", admissionsPhone: "+14135382023",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/13/Mount_Holyoke_College_Mary_Lyon_Hall.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.65 },
       need_aware: { value: "no", confidence: 0.55 },
@@ -143,6 +148,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "Washington", state: "DC", setting: "urban",
     cultureTags: ["corporate", "liberal_arts"], worldRanking: 30,
     aidSiteUrl: "https://financialaid.georgetown.edu", admissionsEmail: "undergraduateadmissions@georgetown.edu", admissionsPhone: "+12026873600",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/2/25/Dahlgren_Chapel_of_the_Sacred_Heart_Georgetown_University.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
       need_aware: { value: "yes", confidence: 0.55 },
@@ -154,6 +160,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     city: "Tempe", state: "AZ", setting: "suburban",
     cultureTags: ["startup", "corporate"], worldRanking: 220,
     aidSiteUrl: "https://admission.asu.edu/cost/international-scholarships", admissionsEmail: "admissions@asu.edu", admissionsPhone: "+14809652100",
+    photoUrl: "https://upload.wikimedia.org/wikipedia/commons/0/02/2021_Arizona_State_University%2C_Tempe_Campus%2C_Old_Main.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.65 },
       need_aware: { value: "yes", confidence: 0.6 },

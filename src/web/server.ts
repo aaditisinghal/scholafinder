@@ -1,33 +1,16 @@
 /**
- * Serves the Tinder-style swipe deck the boss agent links to from iMessage. Separate HTTP
- * surface from the Spectrum message loop — this is what actually renders photos and takes
- * drag gestures, since iMessage bubbles can't host that.
+ * API for the swipe deck — the actual page is the React app in web-app/ (static, deployed
+ * alongside this as Vercel functions). This is pure request/response, no page rendering.
  */
 import "dotenv/config";
 import express from "express";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { rankUniversitiesForStudent } from "../agents/profileMatchAgent.js";
 import { eligibilitySummary } from "../boss/swipe.js";
 import { recordSwipe, type SwipeDecision } from "../agents/swipeDecision.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const swipePageHtml = readFileSync(join(here, "public", "swipe.html"), "utf8");
-
 export function createWebServer() {
   const app = express();
   app.use(express.json());
-
-  app.get("/", (_req, res) => {
-    res.type("html").send(
-      "<p style=\"font-family:sans-serif\">ScholarFinder swipe deck is running. Text the ScholarFinder iMessage line to get your personal link — this page needs a student id, e.g. <code>/swipe/&lt;studentId&gt;</code>.</p>"
-    );
-  });
-
-  app.get("/swipe/:studentId", (req, res) => {
-    res.type("html").send(swipePageHtml.replace("__STUDENT_ID__", req.params.studentId));
-  });
 
   app.get("/api/swipe-stack/:studentId", async (req, res) => {
     try {
@@ -73,5 +56,5 @@ export async function startWebServer(port = Number(process.env.WEB_PORT) || 3000
   await new Promise<void>((resolve) => {
     app.listen(port, () => resolve());
   });
-  console.log(`Swipe deck web server listening on http://localhost:${port}`);
+  console.log(`Swipe deck API listening on http://localhost:${port} (page UI is served separately by web-app/)`);
 }

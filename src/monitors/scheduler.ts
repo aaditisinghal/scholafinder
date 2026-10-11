@@ -7,9 +7,16 @@ import cron from "node-cron";
 import { pool } from "../db/pool.js";
 import { checkAndNotifyDeadlines } from "../agents/deadlineAgent.js";
 import { recheckFact } from "../agents/policyMonitorAgent.js";
+import { notifyPendingSwipeYes } from "../agents/swipeNotifier.js";
 import { getSpace } from "../boss/spaceRegistry.js";
 
 export function startMonitors(): void {
+  // Every 10 seconds: text the result of any web-deck yes-swipe — cron's 1-minute floor
+  // is too slow for this to feel immediate, so it's a plain interval instead.
+  setInterval(() => {
+    notifyPendingSwipeYes().catch((err) => console.error("[swipeNotifier] error", err));
+  }, 10_000);
+
   // Every 10 minutes: deadline reminders.
   cron.schedule("*/10 * * * *", async () => {
     try {
@@ -45,5 +52,5 @@ export function startMonitors(): void {
     }
   });
 
-  console.log("Monitors started (deadline: every 10m, policy-monitor: daily at 06:00).");
+  console.log("Monitors started (swipe-notifier: every 10s, deadline: every 10m, policy-monitor: daily at 06:00).");
 }
