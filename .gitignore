@@ -4,3 +4,7 @@ dist/
 *.log
 secrets/
 .claude/
+
+.vercel
+.env*
+src/web/generated/

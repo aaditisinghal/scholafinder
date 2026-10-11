@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS swipes (
   decision       TEXT NOT NULL,     -- yes | no | skip
   rank_score     NUMERIC(5,2),      -- from profile-match agent, for ordering
   card_text      TEXT,              -- explainer agent output shown to the student
+  notified_at    TIMESTAMPTZ,       -- when swipeNotifier texted this yes-swipe's card over iMessage
   decided_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (student_id, university_id)
 );

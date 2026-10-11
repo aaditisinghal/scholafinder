@@ -4,7 +4,7 @@
  * that US-citizen cost calculators always omit (health insurance, visa/SEVIS, flights, fees).
  */
 import { pool } from "../db/pool.js";
-import { askForJson } from "../llm.js";
+import { askForJson, Type } from "../llm.js";
 
 interface CostBreakdown {
   cost_of_attendance_usd: number;
@@ -40,6 +40,11 @@ student award in USD for the given aid_type band at a US university. Be conserva
 placeholder estimate, not a quote, and will be replaced once real data is gathered.`,
       prompt: `aid_type: ${facts.aid_type ?? "unknown"}`,
       maxTokens: 200,
+      schema: {
+        type: Type.OBJECT,
+        properties: { cost_of_attendance_usd: { type: Type.NUMBER }, award_usd: { type: Type.NUMBER } },
+        required: ["cost_of_attendance_usd", "award_usd"],
+      },
     });
   }
 
