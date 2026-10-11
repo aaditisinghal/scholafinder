@@ -1,6 +1,11 @@
 import { SwipeDeck } from "./SwipeDeck";
+import { OrchestrationView } from "./OrchestrationView";
 
 function App() {
+  if (window.location.pathname === "/orchestration") {
+    return <OrchestrationView />;
+  }
+
   const match = window.location.pathname.match(/^\/swipe\/([^/]+)/);
   const studentId = match?.[1];
 
