@@ -3,9 +3,9 @@
  * hands the extracted text to Claude to pull out structured scholarship facts,
  * and writes candidates (never final facts — that's reconciliationAgent's job).
  */
-import { chromium } from "playwright";
 import { pool } from "../db/pool.js";
-import { askForJson } from "../llm.js";
+import { askForJson, Type } from "../llm.js";
+import { fetchPageText } from "./pageFetch.js";
 
 interface ExtractedFacts {
   international_eligible: "yes" | "no" | "unclear";
@@ -16,15 +16,21 @@ interface ExtractedFacts {
   notes: string;
 }
 
+const EMPTY_RESULT: ExtractedFacts = {
+  international_eligible: "unclear",
+  need_aware: "unclear",
+  aid_type: "unclear",
+  cost_of_attendance_usd: null,
+  award_usd: null,
+  notes: "Page yielded no usable text (JS-rendered content, bot block, or a dead/broken URL) — not sent to the model.",
+};
+
 export async function scrapeUniversityAidPage(universityId: string, url: string): Promise<ExtractedFacts> {
-  const browser = await chromium.launch();
-  let pageText = "";
-  try {
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-    pageText = await page.innerText("body");
-  } finally {
-    await browser.close();
+  const pageText = await fetchPageText(url);
+
+  if (pageText.trim().length === 0) {
+    // Never send an empty prompt to the model — it rejects the request outright.
+    return EMPTY_RESULT;
   }
 
   const extracted = await askForJson<ExtractedFacts>({
@@ -35,6 +41,18 @@ requires US citizenship/eligible noncitizen status, so FAFSA-only pages usually 
 NOT eligible for that specific aid, but say "unclear" unless the page states it outright).`,
     prompt: pageText.slice(0, 15000),
     maxTokens: 500,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        international_eligible: { type: Type.STRING, enum: ["yes", "no", "unclear"] },
+        need_aware: { type: Type.STRING, enum: ["yes", "no", "unclear"] },
+        aid_type: { type: Type.STRING, enum: ["full_ride", "full_need_based", "merit_partial", "partial", "none_mentioned", "unclear"] },
+        cost_of_attendance_usd: { type: Type.NUMBER, nullable: true },
+        award_usd: { type: Type.NUMBER, nullable: true },
+        notes: { type: Type.STRING },
+      },
+      required: ["international_eligible", "need_aware", "aid_type", "cost_of_attendance_usd", "award_usd", "notes"],
+    },
   });
 
   const observedAt = new Date().toISOString();

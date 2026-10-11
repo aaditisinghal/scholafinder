@@ -16,7 +16,16 @@ import { registerSpace } from "./spaceRegistry.js";
 import { ONBOARDING_QUESTIONS, advanceOnboarding, startSession, type OnboardingSession } from "./onboarding.js";
 import { rankUniversitiesForStudent } from "../agents/profileMatchAgent.js";
 import { sendSubmissionReward } from "../reward/solana.js";
-import { askForJson } from "../llm.js";
+import { askForJson, Type } from "../llm.js";
+import { recordEvent, runAgent } from "../orchestration/bus.js";
+
+// Last-resort safety net: this process serves live iMessage traffic, so a single bad
+// background task (a demo-flow run, a cron tick, an unawaited agent call somewhere) must
+// never take the whole service down. Every call site should still be individually handled —
+// this has already caught two cases where it wasn't (a bare-null JSON response, an unguarded
+// empty-page scrape) and both killed the live service before this existed.
+process.on("unhandledRejection", (err) => console.error("[unhandledRejection]", err));
+process.on("uncaughtException", (err) => console.error("[uncaughtException]", err));
 
 const WEB_BASE_URL = process.env.WEB_BASE_URL || "http://localhost:3000";
 
@@ -53,9 +62,23 @@ function introLine(): string {
   ].join("\n\n");
 }
 
-async function beginSwiping(studentId: string, session: Session, send: (text: string) => Promise<unknown>) {
+async function beginSwiping(studentId: string, tenantLabel: string, session: Session, send: (text: string) => Promise<unknown>) {
   session.stage = "swiping";
-  const ranked = await rankUniversitiesForStudent(studentId);
+  const ranked = await runAgent(
+    "profilematch",
+    "Rank swipe stack",
+    `student ${studentId}`,
+    () => rankUniversitiesForStudent(studentId),
+    (r) => `${r.length} universities ranked`,
+    {
+      tenant: studentId,
+      tenantLabel,
+      dispatchSource: [{ kind: "db", label: "preferences WHERE student_id=…" }],
+      resultSource: () => [
+        { kind: "db", label: "preferences, universities, swipes tables (Tiger Data)" },
+      ],
+    }
+  );
   if (ranked.length === 0) {
     await send("No universities matched yet — the browser agent hasn't gathered any that fit your preferences. Check back soon.");
     return;
@@ -65,11 +88,12 @@ async function beginSwiping(studentId: string, session: Session, send: (text: st
   );
 }
 
-async function handleSubmittedCommand(studentId: string, text: string, session: Session, send: (text: string) => Promise<unknown>) {
+async function handleSubmittedCommand(studentId: string, tenantLabel: string, text: string, session: Session, send: (text: string) => Promise<unknown>) {
   const { universityName } = await askForJson<{ universityName: string | null }>({
     system: `Extract the university name the student says they submitted an application to. Null if none found.`,
     prompt: text,
     maxTokens: 60,
+    schema: { type: Type.OBJECT, properties: { universityName: { type: Type.STRING, nullable: true } }, required: ["universityName"] },
   });
   if (!universityName) {
     await send(`Which university did you submit to?`);
@@ -96,12 +120,24 @@ async function handleSubmittedCommand(studentId: string, text: string, session: 
     return;
   }
 
-  await sendReward(studentId, rows[0].id, studentRows[0].solana_wallet, rows[0].name, send);
+  await sendReward(studentId, tenantLabel, rows[0].id, studentRows[0].solana_wallet, rows[0].name, send);
 }
 
-async function sendReward(studentId: string, universityId: string, wallet: string, universityName: string, send: (text: string) => Promise<unknown>) {
+async function sendReward(studentId: string, tenantLabel: string, universityId: string, wallet: string, universityName: string, send: (text: string) => Promise<unknown>) {
   try {
-    const sig = await sendSubmissionReward(studentId, universityId, wallet);
+    const sig = await runAgent(
+      "reward",
+      "Send devnet SOL reward",
+      `${universityName} · ${wallet.slice(0, 8)}…`,
+      () => sendSubmissionReward(studentId, universityId, wallet),
+      (s) => `tx ${s.slice(0, 12)}…`,
+      {
+        tenant: studentId,
+        tenantLabel,
+        externalParty: "Solana devnet",
+        resultSource: (sig) => [{ kind: "api", label: `Solana devnet RPC — on-chain tx ${sig.slice(0, 20)}…` }],
+      }
+    );
     await send(`💸 Sent — devnet tx: ${sig}`);
   } catch (err) {
     await send(`Couldn't send the reward right now (${(err as Error).message}). I've logged it and will retry.`);
@@ -133,12 +169,39 @@ async function main() {
     const text = message.content.text.trim();
     const imessageId = message.sender?.id ?? "unknown";
 
+    recordEvent({
+      kind: "inbound",
+      from: "imessage",
+      to: "boss",
+      agent: "boss",
+      label: "iMessage text",
+      summary: text,
+      status: "success",
+      tenant: imessageId,
+      tenantLabel: imessageId,
+      source: [{ kind: "api", label: "Spectrum (Photon) iMessage webhook" }],
+    });
+    const tracedSend = (t: string) => {
+      recordEvent({
+        kind: "log",
+        from: "boss",
+        to: "imessage",
+        agent: "boss",
+        label: "Boss reply",
+        summary: t.slice(0, 160),
+        status: "success",
+        tenant: imessageId,
+        tenantLabel: imessageId,
+      });
+      return space.send(t);
+    };
+
     await space.responding(async () => {
       try {
-        await handleMessage(space, imessageId, text);
+        await handleMessage({ send: tracedSend }, imessageId, text);
       } catch (err) {
         console.error("[boss] error handling message:", err);
-        await space.send("Sorry, something went wrong on my end — try that again?").catch(() => {});
+        await tracedSend("Sorry, something went wrong on my end — try that again?").catch(() => {});
       }
     });
   }
@@ -156,14 +219,14 @@ async function handleMessage(space: { send(text: string): Promise<unknown> }, im
 
   // "submitted <school>" works from any stage.
   if (/^submitted\b/i.test(text)) {
-    await handleSubmittedCommand(studentId, text, session, (t) => space.send(t));
+    await handleSubmittedCommand(studentId, imessageId, text, session, (t) => space.send(t));
     return;
   }
 
   if (session.stage === "awaiting_wallet" && session.awaitingWalletForUniversityId) {
     await pool.query(`UPDATE students SET solana_wallet = $1 WHERE id = $2`, [text, studentId]);
     const { rows } = await pool.query<{ name: string }>(`SELECT name FROM universities WHERE id = $1`, [session.awaitingWalletForUniversityId]);
-    await sendReward(studentId, session.awaitingWalletForUniversityId, text, rows[0]?.name ?? "that school", (t) => space.send(t));
+    await sendReward(studentId, imessageId, session.awaitingWalletForUniversityId, text, rows[0]?.name ?? "that school", (t) => space.send(t));
     session.stage = "swiping";
     return;
   }
@@ -171,7 +234,7 @@ async function handleMessage(space: { send(text: string): Promise<unknown> }, im
   if (session.stage === "new") {
     const already = await hasPreferences(studentId);
     if (already) {
-      await beginSwiping(studentId, session, (t) => space.send(t));
+      await beginSwiping(studentId, imessageId, session, (t) => space.send(t));
     } else {
       session.stage = "onboarding";
       session.onboarding = startSession(studentId);
@@ -185,7 +248,7 @@ async function handleMessage(space: { send(text: string): Promise<unknown> }, im
     if (next) {
       await space.send(next.prompt);
     } else {
-      await beginSwiping(studentId, session, (t) => space.send(t));
+      await beginSwiping(studentId, imessageId, session, (t) => space.send(t));
     }
     return;
   }

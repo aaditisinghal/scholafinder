@@ -4,7 +4,7 @@
  * (CSS Profile / ISFAA / institutional), test policy, application fee + waiver availability.
  */
 import { pool } from "../db/pool.js";
-import { askForJson } from "../llm.js";
+import { askForJson, Type } from "../llm.js";
 
 interface Packet {
   deadline_ed: string | null; // ISO date or null
@@ -16,7 +16,23 @@ interface Packet {
   fee_waiver_available: boolean;
 }
 
+const EMPTY_PACKET: Packet = {
+  deadline_ed: null,
+  deadline_rd: null,
+  required_docs: [],
+  aid_forms: [],
+  test_policy: "optional",
+  application_fee_usd: null,
+  fee_waiver_available: false,
+};
+
 export async function buildRequirementsPacket(universityId: string, rawPageText: string): Promise<Packet> {
+  // Never send an empty prompt to the model — it rejects the request outright (and previously
+  // crashed the whole process when an unguarded caller hit this with a dead/JS-only page).
+  if (rawPageText.trim().length === 0) {
+    return EMPTY_PACKET;
+  }
+
   const packet = await askForJson<Packet>({
     system: `Extract an international-applicant requirements packet from raw admissions/aid page text.
 Dates must be ISO (YYYY-MM-DD) or null if not stated. aid_forms should only include forms actually
@@ -25,6 +41,19 @@ null/empty/false rather than guessing — downstream agents treat missing fields
 not as "no requirement".`,
     prompt: rawPageText.slice(0, 12000),
     maxTokens: 600,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        deadline_ed: { type: Type.STRING, nullable: true },
+        deadline_rd: { type: Type.STRING, nullable: true },
+        required_docs: { type: Type.ARRAY, items: { type: Type.STRING } },
+        aid_forms: { type: Type.ARRAY, items: { type: Type.STRING } },
+        test_policy: { type: Type.STRING, enum: ["required", "optional", "not_accepted"] },
+        application_fee_usd: { type: Type.NUMBER, nullable: true },
+        fee_waiver_available: { type: Type.BOOLEAN },
+      },
+      required: ["deadline_ed", "deadline_rd", "required_docs", "aid_forms", "test_policy", "application_fee_usd", "fee_waiver_available"],
+    },
   });
 
   await pool.query(

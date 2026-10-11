@@ -7,13 +7,24 @@ import cron from "node-cron";
 import { pool } from "../db/pool.js";
 import { checkAndNotifyDeadlines } from "../agents/deadlineAgent.js";
 import { recheckFact } from "../agents/policyMonitorAgent.js";
+import { notifyPendingSwipeYes } from "../agents/swipeNotifier.js";
 import { getSpace } from "../boss/spaceRegistry.js";
+import { runAgent } from "../orchestration/bus.js";
 
 export function startMonitors(): void {
+  // Every 10 seconds: text the result of any web-deck yes-swipe — cron's 1-minute floor
+  // is too slow for this to feel immediate, so it's a plain interval instead.
+  setInterval(() => {
+    notifyPendingSwipeYes().catch((err) => console.error("[swipeNotifier] error", err));
+  }, 10_000);
+
   // Every 10 minutes: deadline reminders.
   cron.schedule("*/10 * * * *", async () => {
     try {
-      const sent = await checkAndNotifyDeadlines();
+      const sent = await runAgent("deadline", "Check upcoming deadlines", "cron tick", () => checkAndNotifyDeadlines(), (n) => `${n} reminder(s) sent`, {
+        dispatchSource: [{ kind: "db", label: "deadlines table (reminded_at IS NULL, due <=14d)" }],
+        resultSource: () => [{ kind: "db", label: "deadlines table (Tiger Data)" }],
+      });
       if (sent > 0) console.log(`[deadlineAgent] sent ${sent} reminder(s)`);
     } catch (err) {
       console.error("[deadlineAgent] error", err);
@@ -27,7 +38,17 @@ export function startMonitors(): void {
         `SELECT DISTINCT university_id, fact_key FROM scholarship_facts WHERE status = 'confirmed'`
       );
       for (const row of rows) {
-        const result = await recheckFact(row.university_id, row.fact_key);
+        const result = await runAgent(
+          "policymonitor",
+          "Recheck fact for drift",
+          `${row.university_id}/${row.fact_key}`,
+          () => recheckFact(row.university_id, row.fact_key),
+          (r) => r.note,
+          {
+            dispatchSource: [{ kind: "db", label: `scholarship_facts WHERE status='confirmed'` }],
+            resultSource: () => [{ kind: "url", label: "re-scraped aid_site_url, diffed against stored fact" }],
+          }
+        );
         if (result.changed) {
           console.log(`[policyMonitor] ${row.university_id}/${row.fact_key}: ${result.note}`);
           // Notify any student who has swiped yes on this university.
@@ -45,5 +66,5 @@ export function startMonitors(): void {
     }
   });
 
-  console.log("Monitors started (deadline: every 10m, policy-monitor: daily at 06:00).");
+  console.log("Monitors started (swipe-notifier: every 10s, deadline: every 10m, policy-monitor: daily at 06:00).");
 }
