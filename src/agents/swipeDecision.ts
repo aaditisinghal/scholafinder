@@ -34,6 +34,10 @@ export async function recordSwipe(studentId: string, universityId: string, decis
     return "Saved — I don't have full details yet, but I'll keep researching.";
   });
 
+  // Persisted so swipeNotifier (polling, since the web deck and the boss agent are
+  // separate processes/deployments) can text this card over iMessage once a space exists.
+  await pool.query(`UPDATE swipes SET card_text = $1 WHERE student_id = $2 AND university_id = $3`, [card, studentId, universityId]);
+
   kickOffOutreach(studentId, universityId).catch((err) => console.error("[swipeDecision] outreach failed:", err.message));
 
   return { card };
