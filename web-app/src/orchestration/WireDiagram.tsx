@@ -199,7 +199,7 @@ export function WireDiagram({
           {expanded.has("web") && (
             <div className="abox-expand">
               <div className="abox-expand-label">RECENT SWIPES</div>
-              <div className="abox-source-row">└─ Harvard University — YES · 15m ago</div>
+              <div className="abox-source-row">└─ Florida State University — YES · 15m ago</div>
               <div className="abox-source-row">└─ Amherst College — YES · 27m ago</div>
               <div className="abox-source-row">└─ Georgetown University — NO · 31m ago</div>
               <div className="abox-source-row dim" style={{ marginTop: 6 }}>
