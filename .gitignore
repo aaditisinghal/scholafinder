@@ -7,3 +7,4 @@ secrets/
 
 .vercel
 .env*
+src/web/generated/

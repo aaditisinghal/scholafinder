@@ -9,11 +9,15 @@ export default defineConfig({
   css: { postcss: {} },
   server: {
     proxy: {
-      // local `npm run dev` hits the already-deployed API so you don't need a second
-      // local server running just to test the UI.
+      // local `npm run dev` hits the already-deployed API by default so you don't need a
+      // second local server running just to test the UI. Override with API_PROXY_TARGET=
+      // http://localhost:3000 to point at a locally-running `npm run dev` boss process instead
+      // (needed for the orchestration view's SSE stream, which isn't viable on Vercel's
+      // serverless functions — those don't hold a persistent connection or process-local event bus).
       "/api": {
-        target: "https://scholafinder.vercel.app",
+        target: process.env.API_PROXY_TARGET || "https://scholafinder.vercel.app",
         changeOrigin: true,
+        ws: true,
       },
     },
   },

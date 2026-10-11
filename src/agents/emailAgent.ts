@@ -6,24 +6,37 @@
  */
 import "dotenv/config";
 import { pool } from "../db/pool.js";
-import { askForJson, Type } from "../llm.js";
+import { askForJson, streamText, Type } from "../llm.js";
+import { emitStreamChunk } from "../orchestration/bus.js";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_ADDRESS = process.env.EMAIL_FROM_ADDRESS;
 
-export async function draftAndSendEmail(outreachEmailId: string, toAddress: string, universityName: string, customQuestions: string[]): Promise<void> {
+export async function draftAndSendEmail(
+  outreachEmailId: string,
+  toAddress: string,
+  universityName: string,
+  customQuestions: string[],
+  dispatchId?: string,
+  tenant?: string,
+  tenantLabel?: string
+): Promise<void> {
   if (!RESEND_API_KEY || !FROM_ADDRESS) {
     throw new Error("RESEND_API_KEY / EMAIL_FROM_ADDRESS must be set to send a real email.");
   }
 
-  const { body } = await askForJson<{ body: string }>({
+  let body = "";
+  for await (const chunk of streamText({
     system: `Draft a short, polite email from a prospective international student to a US university's
 international admissions office. Ask the given questions plainly. No flattery padding, no "I hope this
-email finds you well" filler — admissions offices get thousands of these.`,
+email finds you well" filler — admissions offices get thousands of these. Plain text only, no JSON.`,
     prompt: `University: ${universityName}\nQuestions:\n${customQuestions.map((q) => `- ${q}`).join("\n")}`,
     maxTokens: 400,
-    schema: { type: Type.OBJECT, properties: { body: { type: Type.STRING } }, required: ["body"] },
-  });
+  })) {
+    body += chunk;
+    if (dispatchId) emitStreamChunk(dispatchId, "email", tenant ?? "system", tenantLabel ?? "system", chunk);
+  }
+  body = body.trim();
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -55,9 +68,26 @@ export async function handleIncomingReply(outreachEmailId: string, universityId:
   const parsed = await askForJson<ParsedReply>({
     system: `Extract scholarship facts an admissions officer stated in this email reply. Only extract what
 is explicitly stated — keys like international_eligible, need_aware, aid_type, cost_of_attendance_usd,
-award_usd. Omit any key not actually addressed in the reply.`,
+award_usd. Omit any key not actually addressed in the reply (set it to null).`,
     prompt: replyBody,
     maxTokens: 400,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        facts: {
+          type: Type.OBJECT,
+          properties: {
+            international_eligible: { type: Type.STRING, nullable: true },
+            need_aware: { type: Type.STRING, nullable: true },
+            aid_type: { type: Type.STRING, nullable: true },
+            cost_of_attendance_usd: { type: Type.STRING, nullable: true },
+            award_usd: { type: Type.STRING, nullable: true },
+          },
+        },
+        summary: { type: Type.STRING },
+      },
+      required: ["facts", "summary"],
+    },
   });
 
   await pool.query(

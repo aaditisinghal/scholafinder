@@ -69,3 +69,26 @@ export async function askForJson<T>(opts: {
   }
   throw lastErr;
 }
+
+/**
+ * Stream raw prose from Gemini token-by-token — for agents whose output is meant to be read as
+ * it's written (explainer cards, email drafts, call transcripts), not structured JSON. No schema:
+ * partial JSON mid-stream isn't readable, so this is reserved for free-text generation.
+ */
+export async function* streamText(opts: { system: string; prompt: string; maxTokens?: number; onChunk?: (chunk: string) => void }): AsyncGenerator<string> {
+  const stream = await genai.models.generateContentStream({
+    model: MODEL,
+    contents: opts.prompt,
+    config: {
+      systemInstruction: opts.system,
+      maxOutputTokens: opts.maxTokens ?? 1024,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+  for await (const part of stream) {
+    const text = part.text;
+    if (!text) continue;
+    opts.onChunk?.(text);
+    yield text;
+  }
+}

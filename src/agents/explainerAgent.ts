@@ -4,10 +4,11 @@
  * actually reads: who/what/why/when/how much, eligibility in one line, deadline, net cost.
  */
 import { pool } from "../db/pool.js";
-import { askForJson, Type } from "../llm.js";
+import { streamText } from "../llm.js";
 import { needAwareWarning } from "./needAwareAgent.js";
+import { emitStreamChunk } from "../orchestration/bus.js";
 
-export async function explainScholarship(studentId: string, universityId: string): Promise<string> {
+export async function explainScholarship(studentId: string, universityId: string, dispatchId?: string, tenant?: string, tenantLabel?: string): Promise<string> {
   const [{ rows: uni }, { rows: facts }, { rows: packet }, { rows: cost }] = await Promise.all([
     pool.query(`SELECT name, city, state FROM universities WHERE id = $1`, [universityId]),
     pool.query(`SELECT fact_key, fact_value, status, confidence FROM scholarship_facts WHERE university_id = $1`, [universityId]),
@@ -17,15 +18,19 @@ export async function explainScholarship(studentId: string, universityId: string
 
   const warning = await needAwareWarning(universityId);
 
-  const { card } = await askForJson<{ card: string }>({
+  let card = "";
+  for await (const chunk of streamText({
     system: `Write a short iMessage-length card (max ~6 lines, no markdown headers) explaining this
 scholarship/aid situation to an international high-schooler. Cover: who it's for, what it covers, why
 it exists if known, when the deadline is, and the net cost after the award. If any fact has
-status "conflicting", say so plainly instead of picking a side. Be concrete, no fluff, no hype.`,
+status "conflicting", say so plainly instead of picking a side. Be concrete, no fluff, no hype. Plain
+text only — this is not JSON.`,
     prompt: JSON.stringify({ university: uni[0], facts, requirements: packet[0], trueCost: cost[0] }),
     maxTokens: 400,
-    schema: { type: Type.OBJECT, properties: { card: { type: Type.STRING } }, required: ["card"] },
-  });
+  })) {
+    card += chunk;
+    if (dispatchId) emitStreamChunk(dispatchId, "explainer", tenant ?? "system", tenantLabel ?? "system", chunk);
+  }
 
-  return warning ? `${card}\n\n${warning}` : card;
+  return warning ? `${card.trim()}\n\n${warning}` : card.trim();
 }
