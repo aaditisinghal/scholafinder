@@ -12,7 +12,7 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 if (!ELEVENLABS_API_KEY) throw new Error("ELEVENLABS_API_KEY not set");
 
 const VOICE = {
-  caller: "TX3LPaxmHKxFdv7VOQHJ", // Liam — confident, energetic young voice for the ScholarFinder AI caller
+  caller: "TX3LPaxmHKxFdv7VOQHJ", // Liam — confident, energetic young voice for the Scholafinder AI caller
   officer: "XrExE9yKIg1WjnnlVkGX", // Matilda — professional, upbeat middle-aged voice for the admissions officer
 };
 

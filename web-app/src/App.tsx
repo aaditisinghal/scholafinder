@@ -1,5 +1,6 @@
 import { SwipeDeck } from "./SwipeDeck";
 import { OrchestrationView } from "./OrchestrationView";
+import { LandingPage } from "./landing/LandingPage";
 
 function App() {
   if (window.location.pathname === "/orchestration") {
@@ -10,13 +11,7 @@ function App() {
   const studentId = match?.[1];
 
   if (!studentId) {
-    return (
-      <div className="landing">
-        ScholarFinder swipe deck is running.
-        <br />
-        Text the ScholarFinder iMessage line to get your personal link.
-      </div>
-    );
+    return <LandingPage />;
   }
 
   return <SwipeDeck studentId={studentId} />;

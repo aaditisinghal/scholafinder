@@ -3,7 +3,7 @@
  *
  * Real admissions offices don't pick up on weekends/after hours, and we don't have a Twilio
  * number imported into ElevenLabs yet, so this generates a realistic two-sided transcript
- * (ScholarFinder's caller persona + a simulated admissions officer) grounded in the university's
+ * (Scholafinder's caller persona + a simulated admissions officer) grounded in the university's
  * actual reconciled scholarship_facts, then renders the officer's half as real ElevenLabs audio.
  *
  * Everything this writes is clearly marked simulated — never presented as a real completed call.
@@ -58,7 +58,7 @@ export async function simulateAdmissionsCall(
 
   let raw = "";
   for await (const chunk of streamText({
-    system: `Write a realistic phone call transcript between a ScholarFinder caller (calling on behalf
+    system: `Write a realistic phone call transcript between a Scholafinder caller (calling on behalf
 of a prospective international student) and a university admissions/financial-aid officer at ${universityName}.
 Ground every fact the officer states in the provided scholarship_facts — if a fact's status is "conflicting"
 or it's simply missing, have the officer be appropriately vague/uncertain rather than inventing a confident
@@ -79,7 +79,7 @@ OUTCOME: <one-sentence summary of what was learned>`,
   }
 
   const { turns, outcome } = parseTranscript(raw);
-  const transcriptText = turns.map((t) => `${t.speaker === "caller" ? "ScholarFinder" : "Admissions Officer"}: ${t.text}`).join("\n");
+  const transcriptText = turns.map((t) => `${t.speaker === "caller" ? "Scholafinder" : "Admissions Officer"}: ${t.text}`).join("\n");
 
   let audioPath: string | null = null;
   if (ELEVENLABS_API_KEY && turns.length > 0) {
@@ -107,8 +107,8 @@ OUTCOME: <one-sentence summary of what was learned>`,
   const labeledTranscript = `[SIMULATED DEMO CALL — real admissions offices don't answer on weekends; this transcript is Gemini-generated and grounded in reconciled scholarship_facts for ${universityName}, not a real conversation]\n\n${transcriptText}\n\n[Outcome: ${outcome}]`;
 
   await pool.query(
-    `UPDATE outreach_calls SET status = 'completed', transcript = $1, completed_at = now() WHERE id = $2`,
-    [labeledTranscript, outreachCallId]
+    `UPDATE outreach_calls SET status = 'completed', transcript = $1, summary = $2, completed_at = now() WHERE id = $3`,
+    [labeledTranscript, outcome || null, outreachCallId]
   );
 
   return { transcript: labeledTranscript, audioPath };
