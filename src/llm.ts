@@ -76,15 +76,32 @@ export async function askForJson<T>(opts: {
  * partial JSON mid-stream isn't readable, so this is reserved for free-text generation.
  */
 export async function* streamText(opts: { system: string; prompt: string; maxTokens?: number; onChunk?: (chunk: string) => void }): AsyncGenerator<string> {
-  const stream = await genai.models.generateContentStream({
-    model: MODEL,
-    contents: opts.prompt,
-    config: {
-      systemInstruction: opts.system,
-      maxOutputTokens: opts.maxTokens ?? 1024,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  });
+  // Retries cover stream *initiation* only (a transient 503/429/network blip before any tokens
+  // arrive) — the same RETRYABLE check askForJson uses. Once a stream has started yielding
+  // chunks a mid-stream failure isn't retried here, since re-running would duplicate whatever
+  // was already emitted to onChunk/the orchestration bus.
+  let stream: Awaited<ReturnType<typeof genai.models.generateContentStream>> | undefined;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      stream = await genai.models.generateContentStream({
+        model: MODEL,
+        contents: opts.prompt,
+        config: {
+          systemInstruction: opts.system,
+          maxOutputTokens: opts.maxTokens ?? 1024,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (!RETRYABLE.test(String(err)) || attempt === 2) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+  if (!stream) throw lastErr;
+
   for await (const part of stream) {
     const text = part.text;
     if (!text) continue;

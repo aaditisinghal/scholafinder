@@ -20,7 +20,8 @@
     "node-cron": "^3.0.3",
     "pg": "^8.13.1",
     "playwright": "^1.64.0",
-    "spectrum-ts": "^12.10.1"
+    "spectrum-ts": "^12.10.1",
+    "svix": "^2.8.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

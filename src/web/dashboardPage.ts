@@ -3,7 +3,7 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ScholarFinder — Agent Orchestration</title>
+<title>Scholafinder — Agent Orchestration</title>
 <style>
   :root {
     color-scheme: dark;
@@ -88,7 +88,7 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
 </style>
 </head>
 <body>
-  <h1>ScholarFinder — Agent Orchestration</h1>
+  <h1>Scholafinder — Agent Orchestration</h1>
   <p class="subtitle">How the boss agent deploys and reads from the full subagent roster. Live data from Tiger Data, refreshes every 5s.</p>
 
   <div class="diagram">

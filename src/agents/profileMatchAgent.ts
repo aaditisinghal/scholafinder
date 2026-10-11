@@ -61,12 +61,5 @@ export async function rankUniversitiesForStudent(studentId: string): Promise<Ran
   const ranked = universities.map((u) => scoreOne(u, prefs));
   ranked.sort((a, b) => b.score - a.score);
 
-  for (const r of ranked) {
-    await pool.query(
-      `UPDATE swipes SET rank_score = $1 WHERE student_id = $2 AND university_id = $3`,
-      [r.score, studentId, r.university.id]
-    ).catch(() => {}); // no-op until a swipe row exists; rank is also returned directly for ordering the stack
-  }
-
   return ranked;
 }

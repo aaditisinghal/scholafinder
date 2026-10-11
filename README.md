@@ -1,4 +1,4 @@
-# ScholarFinder
+# Scholafinder
 
 An iMessage-native multi-agent system that helps international students find and pursue US
 college scholarships: onboarding over text, live research across universities, a Tinder-style
