@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AGENTS, type AgentGroup, type AgentId, type AgentLiveState, type NodeId } from "./types";
 import { AgentBox } from "./AgentBox";
+import { CallPlayback } from "./CallPlayback";
 import type { Pulse } from "./useOrchestrationStream";
 import type { MockMessage } from "./mockData";
 
@@ -235,6 +236,7 @@ export function WireDiagram({
                   expanded={expanded.has(a.id)}
                   onToggle={() => toggle(a.id)}
                   streamingText={state.activeDispatchId ? streamBuffers[state.activeDispatchId] : undefined}
+                  extra={a.id === "call" ? <CallPlayback /> : undefined}
                   ref={(el) => { boxRefs.current[a.id] = el; }}
                 />
               );
