@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 import type { AgentLiveState, AgentMeta, SourceRef } from "./types";
 
 function timeStr(ts: number | null): string {
@@ -13,8 +13,8 @@ function sourceLine(s: SourceRef): string {
 
 export const AgentBox = forwardRef<
   HTMLDivElement,
-  { meta: AgentMeta; state: AgentLiveState; expanded: boolean; onToggle: () => void; size?: "sm" | "lg"; streamingText?: string }
->(({ meta, state, expanded, onToggle, size = "sm", streamingText }, ref) => {
+  { meta: AgentMeta; state: AgentLiveState; expanded: boolean; onToggle: () => void; size?: "sm" | "lg"; streamingText?: string; extra?: ReactNode }
+>(({ meta, state, expanded, onToggle, size = "sm", streamingText, extra }, ref) => {
   const active = state.status === "running";
   const hasError = state.status === "error";
   const everRan = state.runCount > 0;
@@ -40,6 +40,7 @@ export const AgentBox = forwardRef<
       </div>
       {expanded && (
         <div className="abox-expand">
+          {extra}
           {active && (
             <>
               <div className="abox-expand-label live">● LIVE OUTPUT</div>
