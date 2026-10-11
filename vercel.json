@@ -3,6 +3,7 @@
   "outputDirectory": "web-app/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/swipe/(.*)", "destination": "/index.html" }
+    { "source": "/swipe/(.*)", "destination": "/index.html" },
+    { "source": "/orchestration", "destination": "/index.html" }
   ]
 }
