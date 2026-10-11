@@ -130,11 +130,11 @@ A few concrete things that only show up once a system is actually pushed on, not
 
 ---
 
-## Why this wins Photon
+## Best Photon: Agents in iMessage integration
 
 > *"Real human-in-the-loop collaboration, not a demo reel of prompts. Context-awareness that persists across time, channels, and teammates. A delightful default: the agent elevates the moment without demanding attention. Thoughtful safety and fallback behaviors that earn trust."*
 
-| What Photon is judging | Where Scholafinder delivers it |
+| What Scholafinder delivers |
 |---|---|
 | **Vision** — does this push the frontier of hybrid intelligence? | The agent never acts on a student's behalf without them. Before a call or email goes out, the Outreach Customization Agent explicitly asks what they want asked and waits for an answer — a real pause for human judgment, not an autonomous action dressed up as collaboration. |
 | **Craft** — is it cohesive, responsive, and tastefully integrated? | One identity flows across iMessage, the web swipe deck, and background monitoring, with a live token-streamed dashboard showing every agent's real activity as it happens — not a static architecture slide. |
@@ -143,7 +143,7 @@ A few concrete things that only show up once a system is actually pushed on, not
 
 Scholafinder's entire interaction surface is **Spectrum**: the live inbound message loop, outbound sends, and the restart-proof session-resolution path all go through Photon's SDK — not a wrapper around it for one onboarding step and a generic chatbot everywhere else.
 
-## Why this wins the Solana track
+## Best Solana Integration
 
 | Criterion | Honest answer |
 |---|---|
