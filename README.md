@@ -2,8 +2,7 @@
 
 **An agent that finds the US universities that will actually pay for an international student to attend — then calls, emails, and follows up with their admissions office, over iMessage.**
 
-Live app: **[scholafinder.vercel.app](https://scholafinder.vercel.app)** · Live agent dashboard: **[scholafinder.vercel.app/orchestration](https://scholafinder.vercel.app/orchestration)**
-
+Live app: **[scholafinder.vercel.app](https://scholafinder.vercel.app)** · Live agent dashboard: **[scholafinder.vercel.app/orchestration](https://scholafinder.vercel.app/orchestration)** 
 ---
 
 ## The problem
