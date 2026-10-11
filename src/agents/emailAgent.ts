@@ -1,8 +1,10 @@
 /**
  * Email gatherer — async backup to the call agent. Drafts a question list from the DB,
  * sends it via Resend, and parses whatever reply eventually comes back into candidate facts.
- * Replies take 4-5 weeks per the problem statement, so this agent's job is "send and forget,
- * then make sense of whatever shows up" rather than anything synchronous.
+ * Replies can take 4-5 weeks per the problem statement, so "draft and send" and "handle a
+ * reply" are two separate entry points below rather than one synchronous flow — the reply
+ * itself now arrives automatically via Resend's Inbound webhook (see handleIncomingReply
+ * and POST /api/webhooks/resend-inbound in src/web/server.ts), not a manual check.
  */
 import "dotenv/config";
 import { pool } from "../db/pool.js";
@@ -11,6 +13,12 @@ import { emitStreamChunk } from "../orchestration/bus.js";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_ADDRESS = process.env.EMAIL_FROM_ADDRESS;
+// Set after enabling Resend's Inbound feature on a receiving domain (dashboard step — see
+// README). Once set, each outreach email gets a unique reply-to address so a reply can be
+// routed straight back to its outreach_emails row (POST /api/webhooks/resend-inbound in
+// src/web/server.ts). Until then, replies fall back to EMAIL_REPLY_TO_INBOX as before — a real
+// inbox a human reads, but nothing this codebase can act on automatically.
+const INBOUND_REPLY_DOMAIN = process.env.RESEND_INBOUND_DOMAIN;
 
 export async function draftAndSendEmail(
   outreachEmailId: string,
@@ -44,7 +52,7 @@ email finds you well" filler — admissions offices get thousands of these. Plai
     body: JSON.stringify({
       from: FROM_ADDRESS,
       to: toAddress,
-      reply_to: process.env.EMAIL_REPLY_TO_INBOX || FROM_ADDRESS,
+      reply_to: INBOUND_REPLY_DOMAIN ? `reply+${outreachEmailId}@${INBOUND_REPLY_DOMAIN}` : process.env.EMAIL_REPLY_TO_INBOX || FROM_ADDRESS,
       subject: `Prospective international student — questions about financial aid`,
       text: body,
     }),
@@ -63,7 +71,7 @@ interface ParsedReply {
   summary: string;
 }
 
-/** Call this when a reply lands in the dedicated reply-to inbox (wire up via your inbound-email webhook). */
+/** Called by POST /api/webhooks/resend-inbound (src/web/server.ts) when a reply lands on a per-row reply-to address. */
 export async function handleIncomingReply(outreachEmailId: string, universityId: string, replyBody: string): Promise<void> {
   const parsed = await askForJson<ParsedReply>({
     system: `Extract scholarship facts an admissions officer stated in this email reply. Only extract what
@@ -91,8 +99,8 @@ award_usd. Omit any key not actually addressed in the reply (set it to null).`,
   });
 
   await pool.query(
-    `UPDATE outreach_emails SET status = 'replied', reply_body = $1, parsed_facts = $2, replied_at = now() WHERE id = $3`,
-    [replyBody, JSON.stringify(parsed.facts), outreachEmailId]
+    `UPDATE outreach_emails SET status = 'replied', reply_body = $1, parsed_facts = $2, summary = $3, replied_at = now() WHERE id = $4`,
+    [replyBody, JSON.stringify(parsed.facts), parsed.summary, outreachEmailId]
   );
 
   const observedAt = new Date().toISOString();

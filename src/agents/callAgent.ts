@@ -10,6 +10,7 @@
  */
 import "dotenv/config";
 import { pool } from "../db/pool.js";
+import { askForJson, Type } from "../llm.js";
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const AGENT_ID = process.env.ELEVENLABS_AGENT_ID;
@@ -66,7 +67,13 @@ export async function placeAdmissionsCall(
   );
 }
 
-/** Poll ElevenLabs for the finished conversation transcript and store it. */
+/**
+ * Poll ElevenLabs for the finished conversation transcript and store it, with a one-sentence
+ * outcome summary (for the "here's what happened" text — see outreachNotifier.ts). Nothing in
+ * this codebase calls this yet: it only matters once ELEVENLABS_AGENT_PHONE_NUMBER_ID is
+ * configured and placeAdmissionsCall's live branch actually runs, at which point a cron tick
+ * polling outreach_calls WHERE status='calling' would call this per twilio_call_sid.
+ */
 export async function fetchCallTranscript(outreachCallId: string, conversationId: string): Promise<void> {
   if (!ELEVENLABS_API_KEY) throw new Error("ELEVENLABS_API_KEY must be set.");
 
@@ -79,8 +86,16 @@ export async function fetchCallTranscript(outreachCallId: string, conversationId
   if (data.status !== "done" || !data.transcript) return;
 
   const transcriptText = data.transcript.map((t) => `${t.role}: ${t.message}`).join("\n");
+
+  const { summary } = await askForJson<{ summary: string }>({
+    system: `Summarize this admissions-call transcript in one plain sentence — what was learned, stated to an international applicant's advocate who will relay it to the student.`,
+    prompt: transcriptText,
+    maxTokens: 120,
+    schema: { type: Type.OBJECT, properties: { summary: { type: Type.STRING } }, required: ["summary"] },
+  }).catch(() => ({ summary: "" }));
+
   await pool.query(
-    `UPDATE outreach_calls SET status = 'completed', transcript = $1, completed_at = now() WHERE id = $2`,
-    [transcriptText, outreachCallId]
+    `UPDATE outreach_calls SET status = 'completed', transcript = $1, summary = $2, completed_at = now() WHERE id = $3`,
+    [transcriptText, summary || null, outreachCallId]
   );
 }

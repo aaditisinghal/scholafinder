@@ -1,7 +1,11 @@
 /**
  * Onboarding — the first thing a student hits after texting "let's get started".
- * A short, ordered list of questions; each free-text reply is parsed by Claude into the
+ * A short, ordered list of questions; each free-text reply is parsed by Gemini into the
  * structured field (rather than requiring exact keywords) since this runs over plain iMessage text.
+ *
+ * The questions themselves are deliberately fixed text, not Gemini-generated per send — see
+ * src/boss/voice.ts for why (answer-parsing reliability and per-turn latency both matter more
+ * than wording variety for a 7-question data-collection flow).
  */
 import { askForJson, Type, type Schema } from "../llm.js";
 import { pool } from "../db/pool.js";
@@ -13,13 +17,13 @@ interface Question {
 }
 
 export const ONBOARDING_QUESTIONS: Question[] = [
-  { field: "culture", prompt: "What kind of campus culture are you after — startup, corporate, liberal arts, research-heavy, or arts-focused?" },
-  { field: "setting", prompt: "Urban, suburban, or rural setting?" },
-  { field: "aidType", prompt: "What aid are you looking for — full ride, full tuition only, partial, or you're open to anything?" },
-  { field: "rankingBand", prompt: "What world-ranking range are you targeting? (e.g. \"top 50\" or \"100-300\")" },
-  { field: "subjectAndRanking", prompt: "What subject do you want to study, and does its subject-specific ranking matter to you?" },
-  { field: "satScore", prompt: "What's your SAT score (or expected score)? Say \"skip\" if not applicable." },
-  { field: "ieltsScore", prompt: "What's your IELTS score (or expected score)? Say \"skip\" if not applicable." },
+  { field: "culture", prompt: "First up: what's your vibe for campus culture — startup energy, corporate/professional, liberal arts, research-heavy, or more arts-focused?" },
+  { field: "setting", prompt: "Urban, suburban, or rural — where do you actually want to be?" },
+  { field: "aidType", prompt: "Let's talk money: full ride, full tuition only, partial aid, or are you open to anything that gets the number down?" },
+  { field: "rankingBand", prompt: "Got a world-ranking range in mind? (\"top 50\", \"100-300\", whatever ballpark you're aiming for)" },
+  { field: "subjectAndRanking", prompt: "What do you want to study — and does that subject's own ranking matter to you, or mostly the school's overall name?" },
+  { field: "satScore", prompt: "SAT score — actual or expected? Text \"skip\" if it doesn't apply to you." },
+  { field: "ieltsScore", prompt: "Last one — IELTS score, actual or expected? \"skip\" works here too if it's not applicable." },
 ];
 
 export interface OnboardingSession {
@@ -128,10 +132,14 @@ async function parseAnswer(question: Question, answerText: string): Promise<Part
   }
 }
 
-/** Returns the next question to ask, or null when onboarding is complete (and preferences are saved). */
-export async function advanceOnboarding(session: OnboardingSession, answerText: string): Promise<Question | null> {
+export interface AdvanceResult {
+  next: Question | null; // null once onboarding is complete (and preferences are saved)
+  parsedAnswer: Partial<StudentPreferences>; // what THIS answer contributed, for composing an acknowledgment
+}
+
+export async function advanceOnboarding(session: OnboardingSession, answerText: string): Promise<AdvanceResult> {
   const question = currentQuestion(session);
-  if (!question) return null;
+  if (!question) return { next: null, parsedAnswer: {} };
 
   const parsed = await parseAnswer(question, answerText);
   Object.assign(session.answers, parsed);
@@ -141,7 +149,7 @@ export async function advanceOnboarding(session: OnboardingSession, answerText: 
   if (!next) {
     await savePreferences(session.studentId, session.answers);
   }
-  return next;
+  return { next, parsedAnswer: parsed };
 }
 
 async function savePreferences(studentId: string, prefs: Partial<StudentPreferences>): Promise<void> {

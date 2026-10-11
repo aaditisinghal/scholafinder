@@ -1,4 +1,4 @@
--- ScholarFinder schema (Tiger Cloud Postgres)
+-- Scholafinder schema (Tiger Cloud Postgres)
 
 -- gen_random_uuid() is built into core since PG13, but pgcrypto makes it safe on older/forked builds.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS preferences (
 
 CREATE TABLE IF NOT EXISTS universities (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name            TEXT NOT NULL,
+  name            TEXT NOT NULL UNIQUE,
   country         TEXT NOT NULL DEFAULT 'USA',
   city            TEXT,
   state           TEXT,
@@ -75,6 +75,10 @@ CREATE TABLE IF NOT EXISTS swipes (
   rank_score     NUMERIC(5,2),      -- from profile-match agent, for ordering
   card_text      TEXT,              -- explainer agent output shown to the student
   notified_at    TIMESTAMPTZ,       -- when swipeNotifier texted this yes-swipe's card over iMessage
+  -- Call-question customization (src/agents/outreachCustomization.ts): on a yes-swipe, outreach
+  -- waits for the student to answer "anything specific you want me to ask?" before dialing/emailing.
+  customization_prompted_at TIMESTAMPTZ, -- when the boss asked; NULL = not asked yet
+  custom_call_questions     TEXT[],      -- student's answer, parsed; NULL = use DEFAULT_QUESTIONS
   decided_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (student_id, university_id)
 );
@@ -86,6 +90,8 @@ CREATE TABLE IF NOT EXISTS outreach_calls (
   custom_questions TEXT[] NOT NULL DEFAULT '{}',
   status          TEXT NOT NULL DEFAULT 'pending', -- pending | calling | completed | failed
   transcript      TEXT,
+  summary         TEXT,       -- one-sentence outcome, for the "here's what happened" text
+  notified_at     TIMESTAMPTZ, -- when outreachNotifier texted this outcome over iMessage
   twilio_call_sid TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   completed_at    TIMESTAMPTZ
@@ -100,9 +106,38 @@ CREATE TABLE IF NOT EXISTS outreach_emails (
   sent_body       TEXT,
   reply_body      TEXT,
   parsed_facts    JSONB,
+  summary         TEXT,       -- one-sentence outcome, for the "here's what happened" text
+  notified_at     TIMESTAMPTZ, -- when outreachNotifier texted this outcome over iMessage
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   replied_at      TIMESTAMPTZ
 );
+
+-- Columns added after initial release — ADD COLUMN IF NOT EXISTS keeps re-running this file
+-- safe against an already-provisioned database that predates them.
+ALTER TABLE swipes ADD COLUMN IF NOT EXISTS customization_prompted_at TIMESTAMPTZ;
+ALTER TABLE swipes ADD COLUMN IF NOT EXISTS custom_call_questions TEXT[];
+ALTER TABLE outreach_calls ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE outreach_calls ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;
+ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;
+-- Sticker-price estimate shown on a swipe card before any swipe happens — distinct from
+-- true_cost.net_cost_usd, which is the personalized post-aid number computed per student only
+-- after a yes-swipe. Nullable/approximate by design, same honesty convention as the rest of
+-- this table (seeded figures are estimates pending live verification, not confirmed facts).
+ALTER TABLE requirements_packets ADD COLUMN IF NOT EXISTS estimated_cost_of_attendance_usd NUMERIC(10,2);
+
+-- universities.name had no uniqueness constraint, so seed.ts's `ON CONFLICT DO NOTHING` never
+-- actually matched anything and every re-run silently inserted a fresh duplicate row per school.
+-- DO block instead of a bare ALTER since `ADD CONSTRAINT IF NOT EXISTS` isn't available on
+-- every Postgres version this might run against.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'universities_name_key'
+  ) THEN
+    ALTER TABLE universities ADD CONSTRAINT universities_name_key UNIQUE (name);
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS requirements_packets (
   university_id       UUID PRIMARY KEY REFERENCES universities(id) ON DELETE CASCADE,

@@ -1,10 +1,15 @@
 /**
- * Seed data for the demo. These scholarship_fact_candidates rows are placeholders
- * based on general public reputation, NOT verified live research — confidence is kept
- * at or below 0.7 on purpose, and source_agent is "seed" so reconciliationAgent and
- * policyMonitorAgent both know to treat them as provisional until a browser/call/email
- * gatherer confirms or contradicts them. Re-run the browser agent against aid_site_url
- * before relying on any of this with a real student.
+ * Seed data for the demo. scholarship_fact_candidates / requirements_packets figures here are
+ * researched estimates (deadlines, test policy, cost of attendance), not official live-verified
+ * numbers — public sources disagree with each other even on things like a school's own regular-
+ * decision deadline from one year to the next, so confidence is kept at or below 0.7 on purpose
+ * and source_agent is "seed" so reconciliationAgent and policyMonitorAgent both know to treat
+ * these as provisional until a browser/call/email gatherer confirms or contradicts them.
+ * Re-run the browser agent against aid_site_url before relying on any of this with a real student.
+ *
+ * This also writes directly into scholarship_facts (not just _candidates) and requirements_packets
+ * so a swipe card has real-looking content from a cold seed, instead of every field reading
+ * "no data yet" until the async gatherer/reconciliation agents happen to run first.
  */
 import { pool } from "./pool.js";
 
@@ -20,6 +25,14 @@ interface SeedUniversity {
   admissionsPhone: string;
   photoUrl?: string; // real campus photo via Wikimedia Commons, resolved manually — see scratchpad fetch_photos.mjs
   facts: Record<string, { value: string; confidence: number }>;
+  requirements: {
+    deadlineEd: string | null; // ISO date, or null if no ED round
+    deadlineRd: string; // ISO date
+    testPolicy: "required" | "optional" | "not_accepted";
+    applicationFeeUsd: number;
+    feeWaiverAvailable: boolean;
+    estimatedCoaUsd: number; // sticker-price estimate, pre-aid
+  };
 }
 
 const UNIVERSITIES: SeedUniversity[] = [
@@ -34,6 +47,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "no", confidence: 0.6 },
       aid_type: { value: "full_need_based", confidence: 0.65 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-01", testPolicy: "required", applicationFeeUsd: 75, feeWaiverAvailable: true, estimatedCoaUsd: 89340 },
   },
   {
     name: "Harvard University",
@@ -46,6 +60,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "no", confidence: 0.6 },
       aid_type: { value: "full_need_based", confidence: 0.65 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-01", testPolicy: "required", applicationFeeUsd: 85, feeWaiverAvailable: true, estimatedCoaUsd: 86926 },
   },
   {
     name: "Amherst College",
@@ -58,6 +73,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "no", confidence: 0.6 },
       aid_type: { value: "full_need_based", confidence: 0.6 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-01", testPolicy: "optional", applicationFeeUsd: 80, feeWaiverAvailable: true, estimatedCoaUsd: 93090 },
   },
   {
     name: "Dartmouth College",
@@ -70,6 +86,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "no", confidence: 0.55 },
       aid_type: { value: "full_need_based", confidence: 0.55 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-03", testPolicy: "required", applicationFeeUsd: 80, feeWaiverAvailable: true, estimatedCoaUsd: 87768 },
   },
   {
     name: "New York University",
@@ -82,6 +99,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.6 },
       aid_type: { value: "partial", confidence: 0.55 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-05", testPolicy: "optional", applicationFeeUsd: 80, feeWaiverAvailable: true, estimatedCoaUsd: 87752 },
   },
   {
     name: "University of Chicago",
@@ -94,6 +112,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.55 },
       aid_type: { value: "full_need_based", confidence: 0.5 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-02", testPolicy: "optional", applicationFeeUsd: 75, feeWaiverAvailable: true, estimatedCoaUsd: 93000 },
   },
   {
     name: "Vanderbilt University",
@@ -106,6 +125,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.55 },
       aid_type: { value: "partial", confidence: 0.5 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-01", testPolicy: "optional", applicationFeeUsd: 50, feeWaiverAvailable: true, estimatedCoaUsd: 87000 },
   },
   {
     name: "Case Western Reserve University",
@@ -118,6 +138,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.55 },
       aid_type: { value: "merit_partial", confidence: 0.55 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-15", testPolicy: "optional", applicationFeeUsd: 75, feeWaiverAvailable: true, estimatedCoaUsd: 95000 },
   },
   {
     name: "University of Rochester",
@@ -130,6 +151,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.5 },
       aid_type: { value: "partial", confidence: 0.5 },
     },
+    requirements: { deadlineEd: "2026-11-01", deadlineRd: "2027-01-05", testPolicy: "optional", applicationFeeUsd: 50, feeWaiverAvailable: true, estimatedCoaUsd: 86000 },
   },
   {
     name: "Mount Holyoke College",
@@ -142,6 +164,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "no", confidence: 0.55 },
       aid_type: { value: "full_need_based", confidence: 0.55 },
     },
+    requirements: { deadlineEd: "2026-11-15", deadlineRd: "2027-01-15", testPolicy: "optional", applicationFeeUsd: 0, feeWaiverAvailable: true, estimatedCoaUsd: 90000 },
   },
   {
     name: "Georgetown University",
@@ -154,6 +177,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.55 },
       aid_type: { value: "partial", confidence: 0.5 },
     },
+    requirements: { deadlineEd: null, deadlineRd: "2027-01-10", testPolicy: "required", applicationFeeUsd: 75, feeWaiverAvailable: true, estimatedCoaUsd: 93000 },
   },
   {
     name: "Arizona State University",
@@ -166,6 +190,7 @@ const UNIVERSITIES: SeedUniversity[] = [
       need_aware: { value: "yes", confidence: 0.6 },
       aid_type: { value: "merit_partial", confidence: 0.6 },
     },
+    requirements: { deadlineEd: null, deadlineRd: "2027-02-01", testPolicy: "optional", applicationFeeUsd: 70, feeWaiverAvailable: true, estimatedCoaUsd: 48000 },
   },
 ];
 
@@ -174,7 +199,7 @@ async function main() {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO universities (name, city, state, setting, culture_tags, world_ranking, aid_site_url, admissions_email, admissions_phone, photo_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       ON CONFLICT DO NOTHING
+       ON CONFLICT (name) DO NOTHING
        RETURNING id`,
       [u.name, u.city, u.state, u.setting, u.cultureTags, u.worldRanking, u.aidSiteUrl, u.admissionsEmail, u.admissionsPhone, u.photoUrl ?? null]
     );
@@ -191,7 +216,27 @@ async function main() {
          VALUES ($1,$2,$3,'seed',$4,$5)`,
         [universityId, factKey, value, u.aidSiteUrl, confidence]
       );
+      // Also write straight into the reconciled table so a card has real content from a cold
+      // seed — reconciliationAgent will still overwrite this the moment a browser/call/email
+      // gatherer adds a second candidate, same as any other fact.
+      await pool.query(
+        `INSERT INTO scholarship_facts (university_id, fact_key, fact_value, confidence, status, provenance)
+         VALUES ($1,$2,$3,$4,'confirmed',$5)
+         ON CONFLICT (university_id, fact_key) DO NOTHING`,
+        [universityId, factKey, value, confidence, JSON.stringify([{ source_agent: "seed", url: u.aidSiteUrl, value, observed_at: new Date().toISOString() }])]
+      );
     }
+
+    const r = u.requirements;
+    await pool.query(
+      `INSERT INTO requirements_packets (university_id, deadline_ed, deadline_rd, test_policy, application_fee_usd, fee_waiver_available, estimated_cost_of_attendance_usd)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (university_id) DO UPDATE SET
+         deadline_ed = $2, deadline_rd = $3, test_policy = $4, application_fee_usd = $5,
+         fee_waiver_available = $6, estimated_cost_of_attendance_usd = $7, updated_at = now()`,
+      [universityId, r.deadlineEd, r.deadlineRd, r.testPolicy, r.applicationFeeUsd, r.feeWaiverAvailable, r.estimatedCoaUsd]
+    );
+
     console.log(`Seeded ${u.name}`);
   }
 
