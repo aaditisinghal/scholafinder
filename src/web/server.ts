@@ -19,6 +19,12 @@ export function createWebServer() {
   const app = express();
   app.use(express.json());
 
+  app.get("/", (_req, res) => {
+    res.type("html").send(
+      "<p style=\"font-family:sans-serif\">ScholarFinder swipe deck is running. Text the ScholarFinder iMessage line to get your personal link — this page needs a student id, e.g. <code>/swipe/&lt;studentId&gt;</code>.</p>"
+    );
+  });
+
   app.get("/swipe/:studentId", (req, res) => {
     res.type("html").send(swipePageHtml.replace("__STUDENT_ID__", req.params.studentId));
   });
