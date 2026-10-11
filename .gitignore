@@ -4,3 +4,6 @@ dist/
 *.log
 secrets/
 .claude/
+
+.vercel
+.env*

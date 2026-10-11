@@ -1,0 +1,10 @@
+{
+  "buildCommand": "echo no build step needed — api/index.ts is built by the Node function runtime",
+  "outputDirectory": "public",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "src/web/public/**"
+    }
+  }
+}
