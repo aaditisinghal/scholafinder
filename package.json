@@ -1,0 +1,33 @@
+{
+  "name": "scholarfinder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/boss/index.ts",
+    "dev:terminal": "SPECTRUM_PROVIDER=terminal tsx src/boss/index.ts",
+    "db:schema": "tsx src/db/applySchema.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "reconcile": "tsx src/db/reconcileNow.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "@solana/web3.js": "^1.99.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.3.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1",
+    "playwright": "^1.64.0",
+    "spectrum-ts": "^12.10.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.10.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2"
+  }
+}
