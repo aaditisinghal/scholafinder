@@ -87,7 +87,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     name: "University of Chicago",
     city: "Chicago", state: "IL", setting: "urban",
     cultureTags: ["research", "liberal_arts"], worldRanking: 11,
-    aidSiteUrl: "https://collegeadmissions.uchicago.edu/costs-aid", admissionsEmail: "admissions@uchicago.edu", admissionsPhone: "+17737020461",
+    aidSiteUrl: "https://collegeadmissions.uchicago.edu/cost-aid/international-financial-aid", admissionsEmail: "admissions@uchicago.edu", admissionsPhone: "+17737020461",
     photoUrl: "https://upload.wikimedia.org/wikipedia/commons/b/be/Eckhart_Hall.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
@@ -147,7 +147,7 @@ const UNIVERSITIES: SeedUniversity[] = [
     name: "Georgetown University",
     city: "Washington", state: "DC", setting: "urban",
     cultureTags: ["corporate", "liberal_arts"], worldRanking: 30,
-    aidSiteUrl: "https://financialaid.georgetown.edu", admissionsEmail: "undergraduateadmissions@georgetown.edu", admissionsPhone: "+12026873600",
+    aidSiteUrl: "https://finaid.georgetown.edu", admissionsEmail: "undergraduateadmissions@georgetown.edu", admissionsPhone: "+12026873600",
     photoUrl: "https://upload.wikimedia.org/wikipedia/commons/2/25/Dahlgren_Chapel_of_the_Sacred_Heart_Georgetown_University.jpg",
     facts: {
       international_eligible: { value: "yes", confidence: 0.6 },
